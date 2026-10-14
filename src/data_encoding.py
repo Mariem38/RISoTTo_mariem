@@ -15,11 +15,12 @@ std_aa = np.array([
     'MET', 'CYS',
 ])
 
-# standard residue names: AA/RNA/DNA (sorted by aboundance) (29)
+# standard residue names: AA/RNA/DNA (sorted by aboundance) (29). 
+#Added PSU to the list of standard residues to be able to encode it as a standard residue in the model.
 std_resnames = np.array([
     'LEU', 'GLU', 'ARG', 'LYS', 'VAL', 'ILE', 'PHE', 'ASP', 'TYR',
     'ALA', 'THR', 'SER', 'GLN', 'ASN', 'PRO', 'GLY', 'HIS', 'TRP',
-    'MET', 'CYS', 'G', 'A', 'U', 'C', 'T', 'DG', 'DA', 'DT', 'DC'
+    'MET', 'CYS', 'G', 'A', 'U', 'C', 'T', 'DG', 'DA', 'DT', 'DC', 'PSU'
 ])
 
 # standard atom names contained in standard residues (sorted by aboundance) (63)
