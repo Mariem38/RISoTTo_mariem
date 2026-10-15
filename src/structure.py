@@ -15,7 +15,7 @@ from src.data_encoding import std_aminoacids, std_backbone, std_dna, std_rna
 # }
 # res1to3 = {v:k for k,v in res3to1.items()}
 res3to1 = {
-    'G': 'G', 'A': 'A', 'C': 'C', 'U': 'U'
+    'G': 'G', 'A': 'A', 'C': 'C', 'U': 'U', 'PSU': 'P'
 }
 res1to3 = {v:k for k,v in res3to1.items()}
 
