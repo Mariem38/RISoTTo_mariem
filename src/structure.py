@@ -122,7 +122,9 @@ def concatenate_chains(chains):
 
 def tag_hetatm_chains(structure):
     # get hetatm
-    m_hetatm = (structure['het_flag'] == "H")
+    #Keep PSU in chain: Exclude it from hetatm
+    m_hetatm = (structure['het_flag'] == "H") & ~np.isin(structure['resname'], ["PSU"])
+
     resids_hetatm = structure['resid'][m_hetatm]
 
     # split if multiple hetatm
