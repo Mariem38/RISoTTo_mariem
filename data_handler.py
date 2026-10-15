@@ -6,7 +6,7 @@ from torch.utils import data
 from src.dataset import load_sparse_mask
 from src.structure import data_to_structure
 # from src.data_encoding import std_names, std_backbone, std_resnames, std_aminoacids
-from src.data_encoding import std_elements, std_resnames, std_names, encode_features, encode_structure, std_rna, purine_atoms_cg, pyrimidine_atoms_cg
+from src.data_encoding import std_elements, std_resnames, std_names, encode_features, encode_structure, std_rna, purine_atoms_cg, pyrimidine_atoms_cg, psu_atoms_cg
 
 
 def extract_backbone_cg(X, qe, qr, qn, M, std_rna):
@@ -21,20 +21,24 @@ def extract_backbone_cg(X, qe, qr, qn, M, std_rna):
     # Create masks for residue types
     m_purine = pt.from_numpy(np.isin(std_resnames, purines)).to(qr.device)
     m_pyrimidine = pt.from_numpy(np.isin(std_resnames, pyrimidines)).to(qr.device)
+    m_psu = pt.from_numpy(np.isin(std_resnames, ["PSU"])).to(qr.device)
 
     # Identify purines and pyrimidines
     is_purine = pt.any(qr[:,:-1][:,m_purine] > 0.5, dim=1)
     is_pyrimidine = pt.any(qr[:,:-1][:,m_pyrimidine] > 0.5, dim=1)
+    is_psu = pt.any(qr[:,:-1][:,m_psu] > 0.5, dim=1)
 
     # Create masks for the specific atoms
     m_purine_atoms = pt.from_numpy(np.isin(std_names, purine_atoms_cg)).to(qn.device)
     m_pyrimidine_atoms = pt.from_numpy(np.isin(std_names, pyrimidine_atoms_cg)).to(qn.device)
+    m_psu_atoms = pt.from_numpy(np.isin(std_names, psu_atoms_cg)).to(qn.device)
 
     # Match atoms to their types
     has_purine_atoms = pt.any(qn[:,:-1][:,m_purine_atoms] > 0.5, dim=1)
     has_pyrimidine_atoms = pt.any(qn[:,:-1][:,m_pyrimidine_atoms] > 0.5, dim=1)
+    has_psu_atoms = pt.any(qn[:,:-1][:,m_psu_atoms] > 0.5, dim=1)
 
-    m = (~is_rna) | ((is_purine & has_purine_atoms) | (is_pyrimidine & has_pyrimidine_atoms))
+    m = (~is_rna) | ((is_purine & has_purine_atoms) | (is_pyrimidine & has_pyrimidine_atoms) | (is_psu & has_psu_atoms))
 
     return X[m], qe[m], qr[m], qn[m], M[m]
 
