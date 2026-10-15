@@ -68,9 +68,11 @@ std_rna = np.array([
 rna_chem = {"purines" : ['A', 'G'],
             "pyrimidines": ['U', 'C'],
 }
-
+#Added PSU to the list of purines and pyrimidines to be able to encode it as a standard residue in the model.
 purine_atoms_cg = ["P", "C4'", "O2'", "N9"] # A/G
 pyrimidine_atoms_cg = ["P", "C4'", "O2'", "N1"] #U/C
+psu_atoms_cg = ["P", "C4'", "O2'", "C5"] # PSU: base attached through C5 
+
 
 # resname categories
 categ_to_resnames = {
