@@ -83,7 +83,7 @@ if __name__ == "__main__":
     with h5py.File(config_dataset['dataset_filepath'], 'w', libver='latest') as hf:
         # store dataset encoding
         for key in config_encoding:
-            hf[f"metadata/{key}"] = config_encoding[key].astype(np.string_)
+            hf[f"metadata/{key}"] = config_encoding[key].astype(np.bytes_)
 
         # prepare and store all structures
         metadata_l = []
@@ -145,6 +145,6 @@ if __name__ == "__main__":
             #     print(f"Successfully processed {len(metadata_l)} structures")
 
         # store metadata
-        hf['metadata/keys'] = np.array([m['key'] for m in metadata_l]).astype(np.string_)
+        hf['metadata/keys'] = np.array([m['key'] for m in metadata_l]).astype(np.bytes_)
         hf['metadata/csizes'] = np.array([m['csize'] for m in metadata_l])
         hf['metadata/rsizes'] = np.array([m['rsize'] for m in metadata_l])
