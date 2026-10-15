@@ -13,9 +13,9 @@ config_data = {
     'virt_cb': False,
     'partial': True,
 }
-
+#changed input and output layer size
 config_model = {
-    "em": {'N0': 34, 'N1': 64},
+    "em": {'N0': 35, 'N1': 64},
     "sum": sum([
         [{'Ns': 64, 'Nh': 2, 'Nk':3, 'nn': 8}]*5,
         [{'Ns': 64, 'Nh': 2, 'Nk':3, 'nn': 16}]*5,
@@ -23,7 +23,7 @@ config_model = {
         [{'Ns': 64, 'Nh': 2, 'Nk':3, 'nn': 64}]*5,
     ], []),
     "spl": {'N0': 64, 'N1': 64, 'Nh': 4},
-    "dm": {'N0': 64, 'N1': 64, 'N2': 4},
+    "dm": {'N0': 64, 'N1': 64, 'N2': 5},
 }
 
 # define run name tag
