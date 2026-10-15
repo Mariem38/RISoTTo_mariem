@@ -40,17 +40,17 @@ def max_pred_to_seq(p: pt.Tensor):
 
 
 def pred_to_seq(p: pt.Tensor):
-    std_rna_ = ["G", "A", "U", "C"]
+    std_rna_ = ["G", "A", "U", "C", "P"]
     max_indices = pt.argmax(p, dim=1)
     sequence = "".join([std_rna_[idx] for idx in max_indices])
     return sequence
 
 
 def seq_to_tensor(seq: str) -> pt.Tensor:
-    std_rna_ = ["G", "A", "U", "C"]
+    std_rna_ = ["G", "A", "U", "C", "P"]
     char_to_idx = {c: i for i, c in enumerate(std_rna_)}
     indices = [char_to_idx[char] for char in seq]
-    one_hot = pt.nn.functional.one_hot(pt.tensor(indices), num_classes=4).float()
+    one_hot = pt.nn.functional.one_hot(pt.tensor(indices), num_classes=5).float()
     return one_hot
 
 
