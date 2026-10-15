@@ -75,11 +75,12 @@ psu_atoms_cg = ["P", "C4'", "O2'", "C5"] # PSU: base attached through C5
 
 
 # resname categories
+#added PSU to RNA categories
 categ_to_resnames = {
     "protein": ['GLU', 'LEU', 'ALA', 'ASP', 'SER', 'VAL', 'GLY', 'THR', 'ARG',
                 'PHE', 'TYR', 'ILE', 'PRO', 'ASN', 'LYS', 'GLN', 'HIS', 'TRP',
                 'MET', 'CYS'],
-    "rna": ['G', 'A', 'U', 'C'],
+    "rna": ['G', 'A', 'U', 'C', 'PSU'],
     "dna": ['DA', 'DT', 'DG', 'DC'],
     "ion": ['MG', 'ZN', 'CL', 'CA', 'NA', 'MN', 'K', 'IOD', 'CD', 'CU', 'FE', 'NI',
             'SR', 'BR', 'CO', 'HG', 'ACT', 'SO4'],
