@@ -201,27 +201,31 @@ def backbone_mask_cg(qr, qn, std_rna=None):
         is_rna = pt.any(qr[:,:-1][:,m_rna] > 0.5, dim=1)
     else:
         # If std_rna is not provided, use purines and pyrimidines as RNA identifiers
-        m_rna = pt.from_numpy(np.isin(std_resnames, purines + pyrimidines)).to(qr.device)
+        m_rna = pt.from_numpy(np.isin(std_resnames, purines + pyrimidines + ["PSU"])).to(qr.device)
         is_rna = pt.any(qr[:,:-1][:,m_rna] > 0.5, dim=1)
 
     # Create masks for residue types
     m_purine = pt.from_numpy(np.isin(std_resnames, purines)).to(qr.device)
     m_pyrimidine = pt.from_numpy(np.isin(std_resnames, pyrimidines)).to(qr.device)
+    m_psu = pt.from_numpy(np.isin(std_resnames, ["PSU"])).to(qr.device)
 
     # Identify purines and pyrimidines
     is_purine = pt.any(qr[:,:-1][:,m_purine] > 0.5, dim=1)
     is_pyrimidine = pt.any(qr[:,:-1][:,m_pyrimidine] > 0.5, dim=1)
+    is_psu = pt.any(qr[:,:-1][:,m_psu] > 0.5, dim=1)
 
     # Masks for the specific atoms
     m_purine_atoms = pt.from_numpy(np.isin(std_names, purine_atoms_cg)).to(qn.device)
     m_pyrimidine_atoms = pt.from_numpy(np.isin(std_names, pyrimidine_atoms_cg)).to(qn.device)
+    m_psu_atoms = pt.from_numpy(np.isin(std_names, psu_atoms_cg)).to(qn.device)
 
     # Match atoms to their types
     has_purine_atoms = pt.any(qn[:,:-1][:,m_purine_atoms] > 0.5, dim=1)
     has_pyrimidine_atoms = pt.any(qn[:,:-1][:,m_pyrimidine_atoms] > 0.5, dim=1)
+    has_psu_atoms = pt.any(qn[:,:-1][:,m_psu_atoms] > 0.5, dim=1)
 
     # Final mask: Non-RNA atoms OR RNA atoms that match our selection criteria
-    mask = (~is_rna) | ((is_purine & has_purine_atoms) | (is_pyrimidine & has_pyrimidine_atoms))
+    mask = (~is_rna) | ((is_purine & has_purine_atoms) | (is_pyrimidine & has_pyrimidine_atoms) | (is_psu & has_psu_atoms))
 
     return mask
 
