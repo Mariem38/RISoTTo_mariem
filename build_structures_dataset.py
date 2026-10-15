@@ -98,6 +98,10 @@ if __name__ == "__main__":
             pdbid = pdb_filepath.split('/')[-1].split('.')[0]
             bid = 1
 
+            # keep first model only: inputs are PDB entries, so extra models are NMR conformers, not assembly copies
+            m0 = np.char.endswith(structure['chain_name'], ':0')
+            structure = {k: v[pt.from_numpy(m0)] if isinstance(v, pt.Tensor) else v[m0] for k, v in structure.items()}
+
             # check size
             if structure['xyz'].shape[0] >= config_dataset['max_num_atoms']:
                 print(f"Skipping - structure too large: {pdb_filepath}")
