@@ -60,8 +60,9 @@ std_dna = np.array([
     'DG', 'DA', 'DT', 'DC',
 ])
 
+#added PSU as a standard RNA residue
 std_rna = np.array([
-    'G', 'A', 'U', 'C',
+    'G', 'A', 'U', 'C', 'PSU'
 ])
 
 rna_chem = {"purines" : ['A', 'G'],
