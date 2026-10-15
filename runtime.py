@@ -428,6 +428,7 @@ def predict_secondary_structure_ribonanzanet(fasta_path, device="cpu"):
     with open(fasta_path, "r") as f:
         lines = f.readlines()
     sequence = "".join([line.strip() for line in lines if not line.startswith(">")])
+    sequence = sequence.replace("P", "U")  # PSU folds as U
 
     ribonanza_net_ss = RibonanzaNetSS(
         "software/ribonanzanet_sec_struct/config.yaml",

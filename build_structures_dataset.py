@@ -19,10 +19,10 @@ config_dataset = {
     "max_num_nn": 64,
 
     # input filepaths
-    "pdb_filepaths": glob("/media/bibekar/e500c9b8-094e-4f88-983c-27f30285d37a/bibekar/kuma_backup/carbonara-rna/model/data/all_bioassemblies/pdbs/*.pdb"),
+    "pdb_filepaths": glob("/scratch/izar/maazoun/pdb_download/pdb_files/*.pdb.gz"),
 
     # output filepath
-    "dataset_filepath": "datasets/pdb_bprna_structures_nuc_v6.h5",
+    "dataset_filepath": "datasets/pdb_bprna_structures_nuc_v7_psu.h5",
 }
 
 
