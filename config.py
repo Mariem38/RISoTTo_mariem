@@ -3,11 +3,11 @@ from datetime import datetime
 
 
 config_data = {
-    'dataset_filepath': "../../datasets/pdb_bprna_structures_nuc_v6.h5",
+    'dataset_filepath': "datasets/pdb_bprna_structures_nuc_v7_psu.h5",
     'train_selection_filepath': "datasets/grnade_das_train_set.txt",
-    'validation_selection_filepath': "datasets/grnade_das_validation_set.txt",
+    'validation_selection_filepath': "datasets/grnade_das_validation_set_psu.txt",  # gRNAde validation + 14 unsplit PSU entries
     'max_ba': 1,
-    'max_size': 1024*12,
+    'max_size': 1024*8,  # 1024*12 runs out of memory on a 32 GB V100
     'min_num_res': 10,
     'r_noise': 0,
     'virt_cb': False,
@@ -32,7 +32,7 @@ tag = datetime.now().strftime("_%Y-%m-%d_%H-%M")
 config_runtime = {
     'run_name': 'rna_v45_benchmark_grnade_das_bpRNA_cg_d5_ss64_partial'+tag, # P, C4', O2', N9/N1
     'output_dir': 'save',
-    'reload': True,
+    'reload': False,
     'device': 'cuda',
     'num_epochs': 100,
     'log_step': 512,

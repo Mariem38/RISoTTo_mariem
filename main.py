@@ -67,8 +67,10 @@ def eval_step(model, device, batch_data, criterion, pos_ratios, pos_weight_facto
     criterion.pos_weight = pos_weight_factor * (1.0 - pos_ratios) / (pos_ratios + 1e-6)
     dloss = criterion(z, y)
 
-    # re-weighted losses
-    loss_factors = (pos_ratios / pt.sum(pos_ratios)).reshape(1,-1)
+    # re-weighted losses: inverse of each class's share in the batch so rare classes (PSU) weigh more; classes absent from the batch get no weight
+    batch_ratios = pt.mean(y, dim=0)
+    inv_ratios = pt.where(batch_ratios > 0, 1.0 / batch_ratios.clamp(min=1e-6), pt.zeros_like(batch_ratios))
+    loss_factors = (inv_ratios / pt.sum(inv_ratios).clamp(min=1e-6)).reshape(1,-1)
     losses = (loss_factors * dloss) / dloss.shape[0]
 
     return losses, y.detach(), pt.sigmoid(z).detach()
@@ -217,6 +219,10 @@ def train(config_data, config_model, config_runtime, output_path):
         train_results = []
         for batch_train_data in tqdm(dataloader_train):
             # print(batch_train_data)
+            # skip failed loads and structures with fewer atoms than the max number of neighbors
+            if batch_train_data is None or batch_train_data[0].shape[0] < model.max_nn:
+                continue
+
             # global step
             global_step += 1
 
@@ -260,6 +266,10 @@ def train(config_data, config_model, config_runtime, output_path):
                     # evaluate model
                     validation_results = []
                     for step_te, batch_validation_data in enumerate(dataloader_validation):
+                        # skip failed loads and structures with fewer atoms than the max number of neighbors
+                        if batch_validation_data is None or batch_validation_data[0].shape[0] < model.max_nn:
+                            continue
+
                         # forward propagation
                         losses, y, p = eval_step(model, device, batch_validation_data, criterion, pos_ratios, config_runtime['pos_weight_factor'], global_step)
 
