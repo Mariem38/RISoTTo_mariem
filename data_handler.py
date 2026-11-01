@@ -6,13 +6,13 @@ from torch.utils import data
 from src.dataset import load_sparse_mask
 from src.structure import data_to_structure
 # from src.data_encoding import std_names, std_backbone, std_resnames, std_aminoacids
-from src.data_encoding import std_elements, std_resnames, std_names, encode_features, encode_structure, std_rna, purine_atoms_cg, pyrimidine_atoms_cg, psu_atoms_cg
+from src.data_encoding import std_elements, std_resnames, std_names, encode_features, encode_structure, std_rna, rna_chem, purine_atoms_cg, pyrimidine_atoms_cg, psu_atoms_cg
 
 
 def extract_backbone_cg(X, qe, qr, qn, M, std_rna):
 
-    purines = ["G", "A"]
-    pyrimidines = ["U", "C"]
+    purines = rna_chem["purines"]  # G, A, OMG
+    pyrimidines = rna_chem["pyrimidines"]  # U, C, 5MC
 
     # Identify RNA residues
     m_rna = pt.from_numpy(np.isin(std_resnames, std_rna)).to(qr.device)

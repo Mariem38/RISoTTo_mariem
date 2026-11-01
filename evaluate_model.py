@@ -110,10 +110,10 @@ def write_predictions(pdb_id, chain_id, chain_seq_pred, output_dir="predictions/
         fasta_file.write(f">{pdb_id}_{chain_id}\n")
         fasta_file.write(chain_seq_pred + "\n")
 
-    # Predict secondary structure (EternaFold only knows ACGU: fold PSU as U)
+    # Predict secondary structure (EternaFold only knows ACGU: fold PSU as U, 5MC as C, OMG as G)
     ss_input_path = fasta_file_path.replace(".fasta", "_ss_input.fasta")
     with open(ss_input_path, "w") as f:
-        f.write(f">{pdb_id}_{chain_id}\n{chain_seq_pred.replace('P', 'U')}\n")
+        f.write(f">{pdb_id}_{chain_id}\n{chain_seq_pred.replace('P', 'U').replace('M', 'C').replace('O', 'G')}\n")
     ss_lines = predict_secondary_structure(ss_input_path)
     os.remove(ss_input_path)
 

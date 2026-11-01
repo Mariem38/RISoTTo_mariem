@@ -3,7 +3,7 @@ from datetime import datetime
 
 
 config_data = {
-    'dataset_filepath': "datasets/pdb_bprna_structures_nuc_v7_psu.h5",
+    'dataset_filepath': "datasets/pdb_bprna_structures_nuc_v8_mods.h5",  # PSU, 5MC, OMG
     'train_selection_filepath': "datasets/grnade_das_train_set.txt",
     'validation_selection_filepath': "datasets/grnade_das_validation_set_psu.txt",  # gRNAde validation + 14 unsplit PSU entries
     'max_ba': 1,
@@ -13,9 +13,9 @@ config_data = {
     'virt_cb': False,
     'partial': True,
 }
-#changed input and output layer size
+#changed input and output layer size: N0 = 30 element features + 7 RNA classes (G, A, U, C, PSU, 5MC, OMG)
 config_model = {
-    "em": {'N0': 35, 'N1': 64},
+    "em": {'N0': 37, 'N1': 64},
     "sum": sum([
         [{'Ns': 64, 'Nh': 2, 'Nk':3, 'nn': 8}]*5,
         [{'Ns': 64, 'Nh': 2, 'Nk':3, 'nn': 16}]*5,
@@ -23,7 +23,7 @@ config_model = {
         [{'Ns': 64, 'Nh': 2, 'Nk':3, 'nn': 64}]*5,
     ], []),
     "spl": {'N0': 64, 'N1': 64, 'Nh': 4},
-    "dm": {'N0': 64, 'N1': 64, 'N2': 5},
+    "dm": {'N0': 64, 'N1': 64, 'N2': 7},
 }
 
 # define run name tag

@@ -40,17 +40,17 @@ def max_pred_to_seq(p: pt.Tensor):
 
 
 def pred_to_seq(p: pt.Tensor):
-    std_rna_ = ["G", "A", "U", "C", "P"]
+    std_rna_ = ["G", "A", "U", "C", "P", "M", "O"]  # P = PSU, M = 5MC, O = OMG
     max_indices = pt.argmax(p, dim=1)
     sequence = "".join([std_rna_[idx] for idx in max_indices])
     return sequence
 
 
 def seq_to_tensor(seq: str) -> pt.Tensor:
-    std_rna_ = ["G", "A", "U", "C", "P"]
+    std_rna_ = ["G", "A", "U", "C", "P", "M", "O"]  # P = PSU, M = 5MC, O = OMG
     char_to_idx = {c: i for i, c in enumerate(std_rna_)}
     indices = [char_to_idx[char] for char in seq]
-    one_hot = pt.nn.functional.one_hot(pt.tensor(indices), num_classes=5).float()
+    one_hot = pt.nn.functional.one_hot(pt.tensor(indices), num_classes=len(std_rna_)).float()
     return one_hot
 
 
@@ -428,7 +428,7 @@ def predict_secondary_structure_ribonanzanet(fasta_path, device="cpu"):
     with open(fasta_path, "r") as f:
         lines = f.readlines()
     sequence = "".join([line.strip() for line in lines if not line.startswith(">")])
-    sequence = sequence.replace("P", "U")  # PSU folds as U
+    sequence = sequence.replace("P", "U").replace("M", "C").replace("O", "G")  # PSU folds as U, 5MC as C, OMG as G
 
     ribonanza_net_ss = RibonanzaNetSS(
         "software/ribonanzanet_sec_struct/config.yaml",

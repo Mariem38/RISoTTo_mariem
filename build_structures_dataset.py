@@ -22,7 +22,7 @@ config_dataset = {
     "pdb_filepaths": glob("/scratch/izar/maazoun/pdb_download/pdb_files/*.pdb.gz"),
 
     # output filepath
-    "dataset_filepath": "datasets/pdb_bprna_structures_nuc_v7_psu.h5",
+    "dataset_filepath": "datasets/pdb_bprna_structures_nuc_v8_mods.h5",
 }
 
 
