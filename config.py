@@ -3,9 +3,11 @@ from datetime import datetime
 
 
 config_data = {
-    'dataset_filepath': "datasets/pdb_bprna_structures_nuc_v8_mods.h5",  # PSU, 5MC, OMG
-    'train_selection_filepath': "datasets/grnade_das_train_set.txt",
-    'validation_selection_filepath': "datasets/grnade_das_validation_set_psu.txt",  # gRNAde validation + 14 unsplit PSU entries
+    'dataset_filepath': "datasets/pdb_bprna_structures_nuc_v9_split.h5",  # PSU, 5MC, OMG; large entries split per chain / cropped
+    # 90/5/5 split by MMseqs2 sequence cluster (80% id), PSU balanced (make_splits.py)
+    'train_selection_filepath': "datasets/splits_mods_train.txt",
+    'validation_selection_filepath': "datasets/splits_mods_validation.txt",
+    'test_selection_filepath': "datasets/splits_mods_test.txt",
     'max_ba': 1,
     'max_size': 1024*8,  # 1024*12 runs out of memory on a 32 GB V100
     'min_num_res': 10,
