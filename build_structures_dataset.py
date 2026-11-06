@@ -1,5 +1,6 @@
 import os
 import re
+import csv
 import h5py
 import numpy as np
 import torch as pt
@@ -12,6 +13,19 @@ from src.dataset import StructuresDataset, save_data
 
 pt.multiprocessing.set_sharing_strategy('file_system')
 
+DL_DIR = "/scratch/izar/maazoun/pdb_download"
+
+
+def input_filepaths():
+    """Small entries as they are + per-chain / cropped files of the large entries (split_entries_to_pdb.py).
+
+    An original .pdb is only read if split_entries_to_pdb.py left it alone, so no structure is stored twice.
+    """
+    with open(f"{DL_DIR}/pdb_split/manifest.csv", newline="") as f:
+        small = {r["pdb_id"] for r in csv.DictReader(f) if r["status"] == "not split: builder reads original"}
+    originals = [p for p in glob(f"{DL_DIR}/pdb_files/*.pdb.gz") if os.path.basename(p).split(".")[0].upper() in small]
+    return originals + glob(f"{DL_DIR}/pdb_split/*.pdb.gz")
+
 
 config_dataset = {
     # parameters
@@ -19,10 +33,10 @@ config_dataset = {
     "max_num_nn": 64,
 
     # input filepaths
-    "pdb_filepaths": glob("/scratch/izar/maazoun/pdb_download/pdb_files/*.pdb.gz"),
+    "pdb_filepaths": input_filepaths(),
 
     # output filepath
-    "dataset_filepath": "datasets/pdb_bprna_structures_nuc_v8_mods.h5",
+    "dataset_filepath": "datasets/pdb_bprna_structures_nuc_v9_split.h5",
 }
 
 
