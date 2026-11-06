@@ -16,11 +16,11 @@ std_aa = np.array([
 ])
 
 # standard residue names: AA/RNA/DNA (sorted by aboundance) (29). 
-#Added PSU to the list of standard residues to be able to encode it as a standard residue in the model.
+#Added PSU, 5MC and OMG to the list of standard residues to be able to encode them as standard residues in the model.
 std_resnames = np.array([
     'LEU', 'GLU', 'ARG', 'LYS', 'VAL', 'ILE', 'PHE', 'ASP', 'TYR',
     'ALA', 'THR', 'SER', 'GLN', 'ASN', 'PRO', 'GLY', 'HIS', 'TRP',
-    'MET', 'CYS', 'G', 'A', 'U', 'C', 'T', 'DG', 'DA', 'DT', 'DC', 'PSU'
+    'MET', 'CYS', 'G', 'A', 'U', 'C', 'T', 'DG', 'DA', 'DT', 'DC', 'PSU', '5MC', 'OMG'
 ])
 
 # standard atom names contained in standard residues (sorted by aboundance) (63)
@@ -60,27 +60,31 @@ std_dna = np.array([
     'DG', 'DA', 'DT', 'DC',
 ])
 
-#added PSU as a standard RNA residue
+#added PSU, 5MC and OMG as standard RNA residues
 std_rna = np.array([
-    'G', 'A', 'U', 'C', 'PSU'
+    'G', 'A', 'U', 'C', 'PSU', '5MC', 'OMG'
 ])
 
-rna_chem = {"purines" : ['A', 'G'],
-            "pyrimidines": ['U', 'C'],
+# modified nucleotides kept in their RNA chain (written as HETATM in PDB files)
+std_rna_mods = np.array(['PSU', '5MC', 'OMG'])
+
+# OMG (2'-O-methylguanosine) is a purine, 5MC (5-methylcytidine) a pyrimidine; PSU has its own atoms
+rna_chem = {"purines" : ['A', 'G', 'OMG'],
+            "pyrimidines": ['U', 'C', '5MC'],
 }
 #Added PSU to the list of purines and pyrimidines to be able to encode it as a standard residue in the model.
-purine_atoms_cg = ["P", "C4'", "O2'", "N9"] # A/G
-pyrimidine_atoms_cg = ["P", "C4'", "O2'", "N1"] #U/C
+purine_atoms_cg = ["P", "C4'", "O2'", "N9"] # A/G/OMG
+pyrimidine_atoms_cg = ["P", "C4'", "O2'", "N1"] #U/C/5MC
 psu_atoms_cg = ["P", "C4'", "O2'", "C5"] # PSU: base attached through C5 
 
 
 # resname categories
-#added PSU to RNA categories
+#added PSU, 5MC and OMG to RNA categories
 categ_to_resnames = {
     "protein": ['GLU', 'LEU', 'ALA', 'ASP', 'SER', 'VAL', 'GLY', 'THR', 'ARG',
                 'PHE', 'TYR', 'ILE', 'PRO', 'ASN', 'LYS', 'GLN', 'HIS', 'TRP',
                 'MET', 'CYS'],
-    "rna": ['G', 'A', 'U', 'C', 'PSU'],
+    "rna": ['G', 'A', 'U', 'C', 'PSU', '5MC', 'OMG'],
     "dna": ['DA', 'DT', 'DG', 'DC'],
     "ion": ['MG', 'ZN', 'CL', 'CA', 'NA', 'MN', 'K', 'IOD', 'CD', 'CU', 'FE', 'NI',
             'SR', 'BR', 'CO', 'HG', 'ACT', 'SO4'],
@@ -191,9 +195,9 @@ def structure_to_data(structure, device=pt.device("cpu")):
     return X, ids_topk, q, M
 
 def backbone_mask_cg(qr, qn, std_rna=None):
-    # Create masks for purines (A, G) and pyrimidines (C, U)
-    purines = ["A", "G"]
-    pyrimidines = ["C", "U"]
+    # Create masks for purines (A, G, OMG) and pyrimidines (C, U, 5MC)
+    purines = rna_chem["purines"]
+    pyrimidines = rna_chem["pyrimidines"]
 
     # Identify RNA residues (both purines and pyrimidines)
     if std_rna is not None:

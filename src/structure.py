@@ -1,6 +1,6 @@
 import numpy as np
 
-from src.data_encoding import std_aminoacids, std_backbone, std_dna, std_rna
+from src.data_encoding import std_aminoacids, std_backbone, std_dna, std_rna, std_rna_mods
 
 
 # resname convergion (37)
@@ -14,8 +14,9 @@ from src.data_encoding import std_aminoacids, std_backbone, std_dna, std_rna
 #     'DG': 'G', 'DA': 'A', 'DT': 'T', 'DC': 'C'
 # }
 # res1to3 = {v:k for k,v in res3to1.items()}
+# one-letter codes for modified nucleotides: P = PSU, M = 5MC (m5C), O = OMG (Gm)
 res3to1 = {
-    'G': 'G', 'A': 'A', 'C': 'C', 'U': 'U', 'PSU': 'P'
+    'G': 'G', 'A': 'A', 'C': 'C', 'U': 'U', 'PSU': 'P', '5MC': 'M', 'OMG': 'O'
 }
 res1to3 = {v:k for k,v in res3to1.items()}
 
@@ -122,8 +123,8 @@ def concatenate_chains(chains):
 
 def tag_hetatm_chains(structure):
     # get hetatm
-    #Keep PSU in chain: Exclude it from hetatm
-    m_hetatm = (structure['het_flag'] == "H") & ~np.isin(structure['resname'], ["PSU"])
+    #Keep PSU, 5MC and OMG in chain: Exclude them from hetatm
+    m_hetatm = (structure['het_flag'] == "H") & ~np.isin(structure['resname'], std_rna_mods)
 
     resids_hetatm = structure['resid'][m_hetatm]
 

@@ -133,7 +133,7 @@ class StructuresDataset(pt.utils.data.Dataset):
             structure = read_pdb(pdb_filepath)
         except Exception as e:
             print(f"ReadError: {pdb_filepath}: {e}")
-            return None, pdb_filepath
+            return pdb_filepath, None
 
         if self.with_preprocessing:
             # process structure
