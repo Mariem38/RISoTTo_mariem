@@ -22,7 +22,8 @@ warnings.filterwarnings("ignore")
 def setup_dataloader(config_data, sids_selection_filepath):
     # load selected sids
     sids_sel = np.genfromtxt(sids_selection_filepath, dtype=np.dtype('U'))
-    sids_sel = np.array([s.split('_')[0] for s in sids_sel])
+    # full sample ids as stored in the h5 (1EHZ, 1VY4_AX, 7F5S_L5-CROP3); split files from make_splits.py
+    sids_sel = np.array([s.upper() for s in np.atleast_1d(sids_sel)])
 
     # create dataset
     dataset = Dataset(
