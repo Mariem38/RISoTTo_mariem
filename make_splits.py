@@ -10,8 +10,10 @@ Each sample gets the sequence cluster(s) of its RNA:
 Sequences of at least 11 nt are clustered with MMseqs2 (--min-seq-id, -c coverage of both sequences);
 shorter ones are only grouped when identical. Groups of joined clusters never cross splits.
 
-Groups are shuffled (--seed). Groups containing the --balance modification (PSU) go first to validation or test,
-until each holds --frac of its distinct residues; other groups then fill each split to --frac of the samples;
+Groups carrying a --balance modification (default PSU, 5MC, OMG) go first to validation or test, each group
+where it fills the most missing share, until each split holds ~--frac of the distinct residues of every one;
+other groups then fill each split to --frac of the samples. The result depends on the group order, so --tries
+random orders (--seed) are tried and the most balanced one is kept;
 groups larger than --max-group samples always go to train, so that one RNA family cannot fill a test set.
 
 Outputs (in --out-dir):
@@ -107,8 +109,9 @@ def main():
     ap.add_argument("--frac", type=float, default=0.05, help="fraction of samples in validation and in test")
     ap.add_argument("--max-group", type=float, default=0.01,
                     help="groups with more than this fraction of all samples always go to train")
-    ap.add_argument("--balance", default="PSU", choices=MODS,
-                    help="validation and test each get ~frac of the distinct residues of this modification")
+    ap.add_argument("--balance", nargs="+", default=MODS, choices=MODS,
+                    help="validation and test each get ~frac of the distinct residues of these modifications")
+    ap.add_argument("--tries", type=int, default=500, help="random group orders tried; the most balanced is kept")
     ap.add_argument("--balance-tol", type=float, default=1.25,
                     help="a split may exceed its share of the balanced modification by this factor")
     ap.add_argument("--seed", type=int, default=0)
@@ -183,37 +186,55 @@ def main():
                 out[m] += crop_chain_mods[cc][m]
         return out
     gmods = {g: distinct_mods(d) for g, d in df.groupby("group")}
-    total_bal = sum(v[a.balance] for v in gmods.values())
 
-    # --- 90/5/5 by group, validation and test each with ~frac of the samples and of the distinct --balance residues
+    # --- 90/5/5 by group: validation and test each with ~frac of the samples and of the distinct residues
+    # of every --balance modification
+    bal = a.balance
+    b_target = {m: a.frac * sum(v[m] for v in gmods.values()) for m in bal}
+    n_target, cap = a.frac * len(df), a.max_group * len(df)
+    evals = ("validation", "test")
+
+    def assign(order):
+        split_of = {g: "train" for g in order}
+        filled = {s: {"n": 0, **{m: 0 for m in bal}} for s in evals}
+        # pass 1: groups carrying a balanced modification, into the split where they fill the most missing share,
+        # without any modification going over balance_tol x its target
+        for g in order:
+            n, gm = sizes[g], gmods[g]
+            if n > cap or not any(gm[m] for m in bal):
+                continue
+            best, best_gain = None, 0.0
+            for s in evals:
+                f = filled[s]
+                if f["n"] + n > n_target or any(f[m] + gm[m] > a.balance_tol * b_target[m] for m in bal if gm[m]):
+                    continue
+                gain = sum(min(gm[m], max(0.0, b_target[m] - f[m])) / b_target[m] for m in bal if b_target[m])
+                if gain > best_gain:
+                    best, best_gain = s, gain
+            if best is not None:
+                split_of[g] = best
+                filled[best]["n"] += n
+                for m in bal:
+                    filled[best][m] += gm[m]
+        # pass 2: groups without them, until each split holds frac of the samples
+        for g in order:
+            n = sizes[g]
+            if n > cap or any(gmods[g][m] for m in bal):
+                continue
+            for s in evals:
+                if filled[s]["n"] + n <= n_target:
+                    split_of[g] = s
+                    filled[s]["n"] += n
+                    break
+        # worst relative miss over splits and balanced modifications (samples included)
+        dev = max([abs(filled[s][m] / b_target[m] - 1) for s in evals for m in bal if b_target[m]] +
+                  [abs(filled[s]["n"] / n_target - 1) for s in evals])
+        return dev, split_of
+
+    # the greedy result depends on the group order: keep the best of several random orders
     rng = np.random.default_rng(a.seed)
-    order = rng.permutation(sizes.index.values)
-    n_target, b_target, cap = a.frac * len(df), a.frac * total_bal, a.max_group * len(df)
-    split_of = {g: "train" for g in order}
-    filled = {s: {"n": 0, "b": 0} for s in ("validation", "test")}
-
-    # pass 1: groups with the balanced modification, into the split that has the least of it so far
-    for g in order:
-        n, b = sizes[g], gmods[g][a.balance]
-        if b == 0 or n > cap:
-            continue
-        for s in sorted(filled, key=lambda s: filled[s]["b"]):
-            f = filled[s]
-            if f["b"] < b_target and f["b"] + b <= a.balance_tol * b_target and f["n"] + n <= n_target:
-                split_of[g] = s
-                f["n"] += n
-                f["b"] += b
-                break
-    # pass 2: groups without it, until each split holds frac of the samples
-    for g in order:
-        n = sizes[g]
-        if gmods[g][a.balance] > 0 or n > cap:
-            continue
-        for s in ("validation", "test"):
-            if filled[s]["n"] + n <= n_target:
-                split_of[g] = s
-                filled[s]["n"] += n
-                break
+    best_dev, split_of = min((assign(rng.permutation(sizes.index.values)) for _ in range(a.tries)), key=lambda x: x[0])
+    print(f"best of {a.tries} orders: worst deviation from the targets {best_dev:.1%}")
     df["split"] = df.group.map(split_of)
 
     os.makedirs(a.out_dir, exist_ok=True)
@@ -233,7 +254,8 @@ def main():
     summ["fraction"] = (summ.samples / len(df)).round(3)
     for m in MODS:
         summ[f"{m} distinct"] = [sum(gmods[g][m] for g, s in split_of.items() if s == sp) for sp in summ.index]
-    summ[f"{a.balance} fraction"] = (summ[f"{a.balance} distinct"] / summ[f"{a.balance} distinct"].sum()).round(3)
+    for m in a.balance:
+        summ[f"{m} fraction"] = (summ[f"{m} distinct"] / summ[f"{m} distinct"].sum()).round(3)
     with pd.option_context("display.width", 250):
         print("\n" + summ.loc[["train", "validation", "test"]].to_string())
     print(f"\nwritten: {a.out_dir}/splits_mods_{{train,validation,test}}.txt and splits_mods_samples.csv")
