@@ -4,12 +4,13 @@ import warnings
 import sys
 
 from tqdm import tqdm
+import h5py
 
 from config import config_data, config_model, config_runtime
 from data_handler import Dataset
 from model import Model
 import numpy as np
-from src.data_encoding import extract_topology
+from src.data_encoding import extract_topology, std_rna
 from src.dataset import select_by_max_ba, select_by_sid
 from src.logger import Logger
 from src.scoring import bc_score_names, bc_scoring, nanmean
@@ -48,6 +49,30 @@ def setup_dataloader(config_data, sids_selection_filepath):
     return dataloader
 
 
+def dataset_class_ratios(dataset):
+    """Share of each label class among all residues of the selected samples, counted once from the h5.
+
+    Classes are the label columns of the model (std_resnames restricted to std_rna, in that order).
+    Residues of other types (protein, ions, ...) count in the total: their label row is all zeros,
+    as in the batches. Returns (ratios, class names, residue counts).
+    """
+    cols = [i for i, r in enumerate(dataset.std_resnames) if r in std_rna]
+    counts, total = np.zeros(len(cols)), 0
+    with h5py.File(dataset.dataset_filepath, 'r') as hf:
+        for key in dataset.keys[dataset.m]:
+            hgrp = hf['data/structures/' + key]
+            n_atoms, n_res = hgrp.attrs['Mr_shape']
+            qr, mr = np.array(hgrp['qr']), np.array(hgrp['Mr'])
+            # residue of each atom, then residue name of each residue
+            atom_res = np.zeros(n_atoms, dtype=np.int64)
+            atom_res[mr[:, 0]] = mr[:, 1]
+            res_name = np.full(n_res, -1)
+            res_name[atom_res[qr[:, 0]]] = qr[:, 1]
+            counts += np.array([np.sum(res_name == c) for c in cols])
+            total += n_res
+    return counts / max(total, 1), dataset.std_resnames[cols], counts
+
+
 def eval_step(model, device, batch_data, criterion, pos_ratios, pos_weight_factor, global_step):
     # unpack data
     X, q, M, y, rids_sel = [data.to(device) for data in batch_data[:-1]]
@@ -63,15 +88,15 @@ def eval_step(model, device, batch_data, criterion, pos_ratios, pos_weight_facto
             f.write(key+'\n')
         print("Error in:",key)
         
-    # compute weighted loss
+    # positive weight from a running estimate of the class shares (as in the original code;
+    # updated at every call, training and validation alike)
     pos_ratios += (pt.mean(y,dim=0).detach() - pos_ratios) / (1.0 + np.sqrt(global_step))
     criterion.pos_weight = pos_weight_factor * (1.0 - pos_ratios) / (pos_ratios + 1e-6)
     dloss = criterion(z, y)
 
-    # re-weighted losses: inverse of each class's share in the batch so rare classes (PSU) weigh more; classes absent from the batch get no weight
-    batch_ratios = pt.mean(y, dim=0)
-    inv_ratios = pt.where(batch_ratios > 0, 1.0 / batch_ratios.clamp(min=1e-6), pt.zeros_like(batch_ratios))
-    loss_factors = (inv_ratios / pt.sum(inv_ratios).clamp(min=1e-6)).reshape(1,-1)
+    # same weight for every class (G, A, U, C, PSU, 5MC, OMG): baseline run before choosing a class reweighting
+    # (dataset_class_ratios gives the training-set class shares for a dataset-level reweighting)
+    loss_factors = pt.full((1, dloss.shape[1]), 1.0 / dloss.shape[1], device=dloss.device)
     losses = (loss_factors * dloss) / dloss.shape[0]
 
     return losses, y.detach(), pt.sigmoid(z).detach()
@@ -190,7 +215,7 @@ def train(config_data, config_model, config_runtime, output_path):
     model = model.to(device)
 
     # define losses functions
-    criterion = pt.nn.BCEWithLogitsLoss(reduction="none")#, pos_weight=pt.ones([4]).to(device))
+    criterion = pt.nn.BCEWithLogitsLoss(reduction="none")
 
     # define optimizer
     optimizer = pt.optim.Adam(model.parameters(), lr=config_runtime["learning_rate"])
