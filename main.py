@@ -1,3 +1,4 @@
+import csv
 import json
 import os
 import warnings
@@ -15,12 +16,70 @@ from src.dataset import select_by_max_ba, select_by_sid
 from src.logger import Logger
 from src.scoring import bc_score_names, bc_scoring, nanmean
 import torch as pt
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Sampler
 from tensorboard.backend.event_processing.event_accumulator import EventAccumulator
 from torch.utils.tensorboard import SummaryWriter
 warnings.filterwarnings("ignore")
 
-def setup_dataloader(config_data, sids_selection_filepath):
+class GroupSampler(Sampler):
+
+    def __init__(self, dataset, samples_filepath, p_mod=0.5, epoch_size=None, weight_exp=0.5):
+        info = {}
+        with open(samples_filepath, newline='') as f:
+            for r in csv.DictReader(f):
+                info[r['sample'].upper()] = (r['group'], any(int(r[c]) > 0 for c in ('n_PSU', 'n_5MC', 'n_OMG')))
+        # sample ids of the selected keys, as in select_by_sid
+        sids = ['_'.join([s.split(':')[0] for s in key.split('/')[1::2]]).upper() for key in dataset.keys[dataset.m]]
+        self.pools = {True: {}, False: {}}
+        for i, sid in enumerate(sids):
+            g, mod = info.get(sid, (f"missing:{sid}", False))
+            self.pools[mod].setdefault(g, []).append(i)
+        self.pools = {k: list(v.values()) for k, v in self.pools.items() if v}
+        self.p_mod = p_mod if (True in self.pools and False in self.pools) else float(True in self.pools)
+
+        # group weights: probability of a group within its pool ∝ size**weight_exp
+        # (0 = every group equally, 0.5 = sqrt(size), 1 = every sample equally)
+        self.probs = {}
+        for k, groups in self.pools.items():
+            w = np.array([len(g) for g in groups], dtype=float) ** weight_exp
+            self.probs[k] = w / w.sum()
+
+        # cycling: each group goes through a shuffled order of its members before repeating one;
+        # the position is kept across epochs (the sampler lives as long as the DataLoader)
+        self.rng = np.random.default_rng()
+        self.order = {k: [None] * len(groups) for k, groups in self.pools.items()}
+        self.pos = {k: [0] * len(groups) for k, groups in self.pools.items()}
+
+        n_groups = len({g for g, _ in (info.get(s, (f"missing:{s}", False)) for s in sids)})
+        self.epoch_size = int(epoch_size) if epoch_size else n_groups
+        self.stats = {"samples": len(sids), "groups": n_groups,
+                      "mod_samples": sum(len(g) for g in self.pools.get(True, [])),
+                      "mod_groups": len(self.pools.get(True, [])), "unmod_groups": len(self.pools.get(False, [])),
+                      "p_mod": self.p_mod, "weight_exp": weight_exp, "epoch_size": self.epoch_size,
+                      "largest_group_share": round(max(
+                          (self.p_mod if k else 1 - self.p_mod) * float(p.max()) for k, p in self.probs.items()), 4),
+                      "missing_from_csv": sum(s not in info for s in sids)}
+
+    def _next_member(self, k, j):
+        # next member of group j of pool k, reshuffling once all members have been used
+        if self.order[k][j] is None or self.pos[k][j] >= len(self.order[k][j]):
+            self.order[k][j] = self.rng.permutation(self.pools[k][j])
+            self.pos[k][j] = 0
+        i = self.order[k][j][self.pos[k][j]]
+        self.pos[k][j] += 1
+        return int(i)
+
+    def __len__(self):
+        return self.epoch_size
+
+    def __iter__(self):
+        for _ in range(self.epoch_size):
+            k = bool(self.rng.random() < self.p_mod)                    # 1. modified or unmodified pool
+            j = self.rng.choice(len(self.pools[k]), p=self.probs[k])    # 2. group, ∝ size**weight_exp
+            yield self._next_member(k, j)                               # 3. next member in the group's cycle
+
+
+def setup_dataloader(config_data, sids_selection_filepath, group_sampling=False):
     # load selected sids
     sids_sel = np.genfromtxt(sids_selection_filepath, dtype=np.dtype('U'))
     # full sample ids as stored in the h5 (1EHZ, 1VY4_AX, 7F5S_L5-CROP3); split files from make_splits.py
@@ -44,7 +103,13 @@ def setup_dataloader(config_data, sids_selection_filepath):
     dataset.m &= m
 
     # define data loader
-    dataloader = DataLoader(dataset, batch_size=None, shuffle=True, num_workers=8, pin_memory=False, prefetch_factor=4)
+    if group_sampling:
+        sampler = GroupSampler(dataset, config_data['samples_filepath'],
+                               p_mod=config_data['p_mod'], epoch_size=config_data['epoch_size'],
+                               weight_exp=config_data.get('group_weight_exp', 0.5))
+        dataloader = DataLoader(dataset, batch_size=None, sampler=sampler, num_workers=8, pin_memory=False, prefetch_factor=4)
+    else:
+        dataloader = DataLoader(dataset, batch_size=None, shuffle=True, num_workers=8, pin_memory=False, prefetch_factor=4)
 
     return dataloader
 
@@ -201,11 +266,14 @@ def train(config_data, config_model, config_runtime, output_path):
     logger.print(">>> Loading data")
 
     # setup dataloaders
-    dataloader_train = setup_dataloader(config_data, config_data['train_selection_filepath'])
+    dataloader_train = setup_dataloader(config_data, config_data['train_selection_filepath'],
+                                        group_sampling=config_data.get('group_sampling', False))
     dataloader_validation = setup_dataloader(config_data, config_data['validation_selection_filepath'])
 
     # debug print
-    logger.print(f"> training data size: {len(dataloader_train)}")
+    logger.print(f"> training data size: {len(dataloader_train.dataset)} samples, {len(dataloader_train)} draws per epoch")
+    if isinstance(dataloader_train.sampler, GroupSampler):
+        logger.print(f"> group sampling: {dataloader_train.sampler.stats}")
     logger.print(f"> validation data size: {len(dataloader_validation)}")
 
     # debug print
